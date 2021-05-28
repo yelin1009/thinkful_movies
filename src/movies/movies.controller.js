@@ -1,31 +1,45 @@
-const service = require("./reviews.service");
-const asyncErrorBoundary = require("../errors/asyncErrorBoundary");
+const service = require("./movies.service");
+const boundary = require("../errors/asyncErrorBoundary");
 
-async function reviewExists(req, res, next) {
-  const { reviewId } = req.params;
-  const review = await service.read(reviewId);
-  if (review) {
-    res.locals.review = review;
+async function movieExists(req, res, next) {
+  const { movieId } = req.params;
+  const movie = await service.read(movieId);
+  if (movie) {
+    res.locals.movie = movie;
     return next();
+  }
+  return next({ status: 404, message: `Movie cannot be found.` });
+}
+
+async function list(req, res, next) {
+  const isShowing = req.query.is_showing;
+  if (isShowing) {
+    res.json({ data: await service.listActiveMovies() });
   } else {
-    return next({ status: 404, message: `Review cannot be found.` });
+    res.json({ data: await service.list() });
   }
 }
 
-async function update(req, res) {
-  const { reviewId } = req.params;
-
-  await service.update(reviewId, req.body.data);
-  res.json({ data: await service.getUpdatedRecord(reviewId) });
+async function read(req, res, next) {
+  const movie = res.locals.movie;
+  res.json({ data: movie });
 }
 
-async function destroy(req, res) {
-  const { reviewId } = req.params;
-  await service.destroy(reviewId);
-  res.sendStatus(204);
+async function listTheaters(req, res, next) {
+  const { movieId } = req.params;
+  const theaters = await service.listTheaters(movieId);
+  res.json({ data: theaters });
+}
+
+async function listReviews(req, res, next) {
+  const { movieId } = req.params;
+  const reviews = await service.listReviews(movieId);
+  res.json({ data: reviews });
 }
 
 module.exports = {
-  update: [asyncErrorBoundary(reviewExists), asyncErrorBoundary(update)],
-  delete: [asyncErrorBoundary(reviewExists), asyncErrorBoundary(destroy)],
+  list: boundary(list),
+  read: [boundary(movieExists), read],
+  listTheaters: [boundary(movieExists), boundary(listTheaters)],
+  listReviews: [boundary(movieExists), boundary(listReviews)],
 };

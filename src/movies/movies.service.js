@@ -8,37 +8,53 @@ const addCritic = mapProperties({
   organization_name: "critic.organization_name",
 });
 
-function read(reviewId) {
-  return knex("reviews").select("*").where({ review_id: reviewId }).first();
+function list() {
+  return knex("movies").select("*").groupBy("movies.movie_id");
 }
 
-function update(reviewId, updatedReview) {
-  return knex("reviews")
-    .select("*")
-    .where({ review_id: reviewId })
-    .update(updatedReview, "*");
+function listActiveMovies() {
+  return knex("movies")
+    .join("movies_theaters", "movies.movie_id", "movies_theaters.movie_id")
+    .select("movies.*")
+    .where({ "movies_theaters.is_showing": true })
+    .groupBy("movies.movie_id");
 }
 
-function getUpdatedRecord(reviewId) {
-  return knex("reviews as r")
-    .join("critics as c", "r.critic_id", "c.critic_id")
+function read(id) {
+  return knex("movies")
     .select("*")
-    .where({ review_id: reviewId })
-    .first()
+    .where({ movie_id: id })
+    .groupBy("movies.movie_id")
+    .first();
+}
+
+function listTheaters(id) {
+  return knex("movies_theaters as mt")
+    .join("theaters as t", "mt.theater_id", "t.theater_id")
+    .select("*")
+    .where({ movie_id: id, is_showing: true });
+}
+
+function listReviews(id) {
+  return knex("movies as m")
+    .join("reviews as r", "m.movie_id", "r.movie_id")
+    .join("critics as c", "c.critic_id", "r.critic_id")
+    .select("*")
+    .where({ "r.movie_id": id })
     .then((result) => {
-      const updatedRecord = addCritic(result);
-      updatedRecord.critic_id = updatedRecord.critic.critic_id;
-      return updatedRecord;
+      const movieList = [];
+      result.forEach((item) => {
+        const appendedObject = addCritic(item);
+        movieList.push(appendedObject);
+      });
+      return movieList;
     });
 }
 
-function destroy(reviewId) {
-  return knex("reviews").where({ review_id: reviewId }).del();
-}
-
 module.exports = {
+  list,
+  listActiveMovies,
   read,
-  update,
-  getUpdatedRecord,
-  destroy,
+  listTheaters,
+  listReviews,
 };
